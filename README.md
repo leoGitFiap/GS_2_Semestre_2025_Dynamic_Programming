@@ -5,6 +5,11 @@
 
 Este projeto é uma solução desenvolvida para a Global Solution da disciplina *Dynamic Programming*.
 
+**Realizado pelo grupo:**
+* Leonardo Fernandes Mesquita, RM:559623
+* Marco Antonio Caires Freire, RM:559256
+* Guilherme Augusto Caseiro, RM:559765
+
 O script utiliza a API do Google Gemini para atuar como um "Consultor de Carreira". Ele coleta o perfil profissional do usuário através de um menu interativo e, em seguida, busca na IA uma lista de 20 áreas relevantes, seus salários e cursos de exemplo.
 
 O núcleo do projeto é a **extração**, **transformação** e **ordenação** desses dados:
@@ -62,7 +67,7 @@ Siga estas instruções para configurar e executar o projeto em sua máquina loc
 
 ---
 
-## 🔑 Configuração da Chave API (PARA EDITAR)
+## 🔑 Configuração da Chave API
 
 Para executar o script, você precisa de uma chave de API do Google Gemini.
 
