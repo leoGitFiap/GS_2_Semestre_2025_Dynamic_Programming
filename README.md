@@ -51,8 +51,8 @@ Siga estas instruções para configurar e executar o projeto em sua máquina loc
 
 1.  Clone este repositório (ou baixe os arquivos RAR):
     ```sh
-    git clone https://[SEU-REPOSITORIO-GIT-AQUI]
-    cd [NOME-DA-PASTA-DO-PROJETO]
+    git clone https://github.com/leoGitFiap/GS_2_Semestre_2025_Dynamic_Programming
+    cd projeto_sugestão_de_reskilling
     ```
 
 2.  Instale a biblioteca necessária do Google:
