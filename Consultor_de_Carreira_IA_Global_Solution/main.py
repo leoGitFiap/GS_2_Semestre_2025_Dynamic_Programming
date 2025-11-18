@@ -12,6 +12,11 @@ import sys
 # Usaremos para criar pausas dramáticas com 'time.sleep()', melhorando a experiência do usuário.
 import time
 
+# 'os' é a biblioteca de Sistema Operacional.
+# Usaremos para ler Variáveis de Ambiente e gerenciar input seguro,
+# eliminando a necessidade de escrever a senha no código.
+import os
+
 # --- Importações Específicas do Google ---
 
 try:
@@ -30,18 +35,6 @@ except ImportError:
 # Estamos aumentando preventivamente esse limite para 2000 para evitar um 'RecursionError'.
 sys.setrecursionlimit(2000)
 
-# --- Configuração da API ---
-
-try:
-    # AQUI VOCÊ DEVE COLAR SUA CHAVE DE API GERADA NO GOOGLE AI STUDIO.
-    # A variável 'client' se torna nosso "portão" de comunicação com a IA.
-    client = genai.Client(api_key="SUA_CHAVE_API_AQUI")
-except Exception as e:
-    # Se a chave estiver errada, for inválida ou houver outro erro, o programa avisa.
-    print(f"Erro ao configurar o cliente da API: {e}")
-    print("Verifique se sua chave de API é válida.")
-    sys.exit()  # Encerra o programa
-
 
 # --- Funções Utilitárias (Interface) ---
 
@@ -55,6 +48,44 @@ def exibir_titulo(texto):
     print(f"   {texto.upper()}")
     # Imprime outra linha de 40 sinais de '='
     print(f"{'=' * 40}\n")
+
+
+def configurar_chave_api():
+    """
+    Gerencia a obtenção da chave de API de forma segura e interativa.
+    Evita que o usuário precise editar o código fonte.
+    """
+    exibir_titulo("Configuração de Acesso")
+
+    # 1. Tenta buscar nas Variáveis de Ambiente do sistema (Melhor prática de segurança).
+    # Isso permite que desenvolvedores configurem o ambiente sem digitar a senha toda vez.
+    chave_env = os.getenv("GOOGLE_API_KEY")
+    if chave_env:
+        print("✅ Chave de API encontrada nas variáveis de ambiente.")
+        return chave_env
+
+    # 2. Se não encontrar no sistema, solicita via terminal (Input Interativo).
+    print("⚠️  Nenhuma chave de ambiente encontrada.")
+    print("Este sistema utiliza a IA do Google Gemini.")
+    print("Você precisa de uma chave válida (obtida em aistudio.google.com).\n")
+
+    # Loop infinito até o usuário fornecer uma chave.
+    while True:
+        try:
+            # .strip() remove espaços acidentais no início ou fim (ex: erro de colar).
+            chave_input = input("➤ Cole sua API Key aqui e tecle ENTER: ").strip()
+
+            if chave_input:
+                # Validação visual simples (chaves do Google geralmente não são curtas).
+                print("\n✅ Chave recebida. Testando conexão...")
+                time.sleep(1) # Pequena pausa para feedback visual.
+                return chave_input
+            else:
+                print("❌ A chave não pode estar vazia. Tente novamente.")
+        except KeyboardInterrupt:
+            # Permite sair graciosamente com Ctrl+C.
+            print("\nOperação cancelada pelo usuário.")
+            sys.exit()
 
 
 def obter_escolha_usuario(opcoes, nome_nivel):
@@ -242,7 +273,8 @@ def prompt_para_ia(prompt_texto):
     """
     print(f"\n-> Enviando prompt para a API...")
     try:
-        # Chama o cliente da API que configuramos
+        # Chama o cliente da API (a variável 'client' deve estar globalmente disponível
+        # após a inicialização no main).
         response = client.models.generate_content(
             model="gemini-2.5-flash",  # Modelo específico que estamos usando
             contents=prompt_texto  # O prompt que construímos
@@ -257,7 +289,6 @@ def prompt_para_ia(prompt_texto):
 
 def coletar_dados_da_api(response_text):
     """
-    (CORRIGIDO)
     Recebe o TEXTO de resposta da API (em tópicos)
     e o converte para a estrutura de dados (lista de dicionários).
     Esta é a etapa de "Extração e Transformação" (ETL).
@@ -280,16 +311,16 @@ def coletar_dados_da_api(response_text):
         linha_limpa = linha.strip()
 
         # --- A MÁGICA DO REGEX ---
-        # Estamos procurando um padrão específico que pedimos à IA:
-        # r'...'  -> String "raw" (ignora caracteres de escape)
-        # ^        -> Começa NO INÍCIO da linha
-        # \* -> Literalmente um asterisco '*' (precisa da '\' para escapar)
-        # \s* -> 0 ou mais espaços em branco
-        # (.*?)    -> Grupo 1: Captura "qualquer coisa" (.*) de forma "não-gulosa" (?).
-        # \s*:\s* -> Um ':' cercado por 0 ou mais espaços
-        # (.*?)    -> Grupo 2: Captura "qualquer coisa" (o curso)
-        # \s*:\s* -> Outro ':'
-        # ([\d,.]+) -> Grupo 3: Captura (um ou mais) caracteres que sejam dígitos (\d), vírgulas (,) ou pontos (.).
+        # Estamos procurando um padrão específico que pedimos à IA.
+        # O regex deve capturar 3 GRUPOS: Área, Curso e Salário.
+        #
+        # Explicação:
+        # ^\* -> Começa com asterisco
+        # (.*?)    -> Grupo 1: Captura a Área (até o próximo :)
+        # \s*:\s* -> Separador ':'
+        # (.*?)    -> Grupo 2: Captura o Curso (até o próximo :)
+        # \s*:\s* -> Separador ':'
+        # ([\d,.]+) -> Grupo 3: Captura o Salário (números e pontuações)
         match = re.match(r'^\*\s*(.*?)\s*:\s*(.*?)\s*:\s*([\d,.]+)', linha_limpa)
 
         # Se o padrão da linha CORRESPONDER ao nosso Regex...
@@ -343,9 +374,9 @@ def coletar_dados_da_api(response_text):
 
 def mostrar_dados(dados_lista, titulo="Dados da API"):
     """
-    (ATUALIZADO - Saída Dinâmica)
-    Função utilitária para imprimir a lista de dicionários de forma bonita.
-    Ela calcula dinamicamente a largura de cada coluna.
+    (Função Atualizada)
+    Função utilitária para imprimir a lista de dicionários.
+    Ela calcula dinamicamente a largura de cada coluna para não quebrar a tabela.
     """
     print(f"\n--- {titulo} ---")
     # Validação: se a lista estiver vazia, não faz nada.
@@ -355,41 +386,37 @@ def mostrar_dados(dados_lista, titulo="Dados da API"):
 
     # --- INÍCIO DA LÓGICA DE FORMATAÇÃO ---
 
-    # 1. Definir os nomes dos cabeçalhos (para calcular a largura deles)
+    # 1. Definir os nomes dos cabeçalhos
     header_area = "Área de Atuação"
     header_curso = "Curso Exemplo"
     header_salario = "Salário Mensal (R$)"
 
     # 2. Calcular a largura máxima dos DADOS em cada coluna
+    # O 'max()' varre toda a lista para encontrar o texto mais longo.
     try:
-        # Usa uma 'generator expression' para encontrar o comprimento (len) da 'area' mais longa.
-        # .get('area', '') é usado para segurança, caso a chave 'area' não exista (retorna '').
         max_w_area = max(len(item.get('area', '')) for item in dados_lista)
         max_w_curso = max(len(item.get('curso', '')) for item in dados_lista)
-
-        # Para o salário, calcula o tamanho do NÚMERO FORMATADO (ex: 15,000 tem 6 chars)
+        # Para o salário, calcula o tamanho do NÚMERO FORMATADO (ex: 15.000 tem 6 chars)
         max_w_salario_num = max(len(f"{item.get('salario_estimado_mensal', 0):,}") for item in dados_lista)
 
     except Exception as e:
-        # Se algo der errado (ex: dados não são strings), avisa e para.
         print(f"ERRO ao calcular larguras: {e}. Verifique os dados: {dados_lista}")
         return
 
-    # 3. A largura final da coluna é o MÁXIMO entre o cabeçalho e os dados
-    # Isso garante que nem o cabeçalho nem os dados sejam cortados.
+    # 3. A largura final da coluna é o MÁXIMO entre o cabeçalho e o dado mais longo.
+    # Isso garante que o cabeçalho não fique cortado, nem os dados.
     w_area = max(len(header_area), max_w_area)
     w_curso = max(len(header_curso), max_w_curso)
     w_salario = max(len(header_salario), max_w_salario_num)
 
-    # 4. Definir o separador que usaremos
+    # 4. Definir o separador
     sep = " | "
 
     # --- FIM DA LÓGICA DE FORMATAÇÃO ---
 
     # 5. Imprimir o Cabeçalho
-    # f-string formatada: {variavel:<{largura_variavel}}
-    # O '<' alinha à esquerda.
-    # O '>' alinha à direita (bom para números).
+    # f-string: {valor:<{largura}} alinha à esquerda.
+    # f-string: {valor:>{largura}} alinha à direita.
     print(
         f"{header_area:<{w_area}}" + sep +
         f"{header_curso:<{w_curso}}" + sep +
@@ -397,30 +424,27 @@ def mostrar_dados(dados_lista, titulo="Dados da API"):
     )
 
     # 6. Imprimir a linha separadora
-    # Calcula a largura total da tabela para a linha '-'
+    # O tamanho total é a soma das larguras + separadores
     total_width = w_area + w_curso + w_salario + len(sep) * 2
     print("-" * total_width)
 
     # 7. Imprimir os Dados (item por item)
     for item in dados_lista:
         try:
-            # Pega os dados do dicionário (usando .get() por segurança)
             area = item.get('area', 'N/A')
             curso = item.get('curso', 'N/A')
-            # Formata o número do salário com vírgulas/pontos (ex: 15,000)
+            # Formata o número com vírgulas/pontos
             salario_f = f"{item.get('salario_estimado_mensal', 0):,}"
 
-            # Imprime a linha de dados, usando as MESMAS larguras calculadas
+            # Imprime a linha de dados, respeitando as larguras calculadas
             print(
                 f"{area:<{w_area}}" + sep +
                 f"{curso:<{w_curso}}" + sep +
                 f"{salario_f:>{w_salario}}"  # Salário alinhado à direita
             )
         except KeyError as e:
-            # Caso .get() falhe ou a chave não exista (ex: erro de digitação)
             print(f"ERRO: Item {item} não contém a chave {e}")
         except ValueError:
-            # Caso o salário não seja um número
             print(f"ERRO: Salário {item.get('salario_estimado_mensal')} não é um número.")
 
 
@@ -537,7 +561,18 @@ def organizar_dados(lista_de_dados, chave_para_ordenar):
 # e não quando ele é importado por outro script.
 if __name__ == "__main__":
 
-    # 1. CONSTRUÇÃO DO PROMPT
+    # 1. CONFIGURAÇÃO DA API (NOVO PASSO)
+    # Solicitamos a chave antes de qualquer coisa.
+    minha_chave = configurar_chave_api()
+
+    # Inicializamos o cliente da API com a chave fornecida pelo usuário.
+    try:
+        client = genai.Client(api_key=minha_chave)
+    except Exception as e:
+        print(f"Erro fatal ao inicializar o cliente: {e}")
+        sys.exit()
+
+    # 2. CONSTRUÇÃO DO PROMPT
     # Estamos usando uma f-string (f"") e 'triple quotes' (""") para
     # criar um texto de múltiplas linhas.
     prompt_detalhado = f"""
@@ -560,17 +595,17 @@ if __name__ == "__main__":
     # O "Exemplo:" é crucial, pois "ensina" a IA (few-shot learning)
     # qual o formato exato que esperamos.
 
-    # 2. CHAMA A API
+    # 3. CHAMA A API
     # 'prompt_detalhado' é enviado para a IA.
     # 'resposta_em_texto' é o que a IA devolve (um bloco de texto).
     resposta_em_texto = prompt_para_ia(prompt_detalhado)
 
-    # 3. CONVERTE OS DADOS (ETL)
+    # 4. CONVERTE OS DADOS (ETL)
     # 'resposta_em_texto' é processada pelo Regex.
     # 'minha_lista_api' é a LISTA DE DICIONÁRIOS (nosso dataframe).
     minha_lista_api = coletar_dados_da_api(resposta_em_texto)
 
-    # 4. PROCESSA E EXIBE
+    # 5. PROCESSA E EXIBE
     # Se a lista não estiver vazia (ou seja, o parsing funcionou)...
     if minha_lista_api:
         # Mostra os dados na ordem original que a API enviou.
